@@ -2105,7 +2105,7 @@
       }
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+ 
 </head>
 
 <body><canvas id="canvas"></canvas>
@@ -2815,20 +2815,6 @@
     }
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeCertModal(); closeResumeModal(); } });
 
-    /* ═══════════════════════════════════════════
-       RESUME MODAL — EmailJS integration
-    ════════════════════════════════════════════ */
-    var EMAILJS_PUBLIC_KEY = 'DtScOq1RFI6o51sc7';
-    var EMAILJS_SERVICE_ID = 'service_qoopvn8';
-    var EMAILJS_TEMPLATE_ID = 'template_lg5z8t6';
-    var EMAILJS_OWNER_TEMPLATE_ID = 'template_q8phv9g';
-    var OWNER_EMAIL = 'shubhanshumohan274@gmail.com';
-    var RESUME_LINK = 'https://drive.google.com/file/d/1fFCUVW_p5FhB7TwgK8G-6aKOUKHHs9fu/view?usp=sharing';
-
-    (function () {
-      try { if (EMAILJS_PUBLIC_KEY) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY }); }
-      catch (e) { console.warn('EmailJS init:', e); }
-    })();
 
     function openResumeModal() {
       /* reset to form state */
@@ -2859,41 +2845,52 @@
       else { spin.classList.remove('active'); txt.textContent = '\uD83D\uDCEC Send Resume to My Email'; }
     }
     async function submitResumeRequest() {
-      clearRRErrors();
-      var name = document.getElementById('rr-name').value.trim();
-      var email = document.getElementById('rr-email').value.trim();
-      var purpose = document.getElementById('rr-purpose').value.trim() || 'Not specified';
-      var now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-      var valid = true;
-      if (!name) { document.getElementById('rr-name').classList.add('error'); document.getElementById('rr-name-err').classList.add('show'); valid = false; }
-      var emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!email || !emailReg.test(email)) { document.getElementById('rr-email').classList.add('error'); document.getElementById('rr-email-err').classList.add('show'); valid = false; }
-      if (!valid) return;
-      setRRLoading(true);
-      /* Demo mode if keys not configured */
-      if (!EMAILJS_PUBLIC_KEY || EMAILJS_PUBLIC_KEY === '') {
-        await new Promise(function (r) { setTimeout(r, 1400); });
-        setRRLoading(false);
-        showRRSuccess();
-        console.log('[DEMO] Resume request — Name:', name, '| Email:', email, '| Purpose:', purpose, '| Time:', now);
-        return;
-      }
-      try {
-        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-          user_name: name, email: email, from_name: 'Shubhanshu Mohan', resume_link: RESUME_LINK, purpose: purpose
-        });
-        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_OWNER_TEMPLATE_ID, {
-          user_name: name, email: email, purpose: purpose, time: now
-        });
-        setRRLoading(false); showRRSuccess();
-      } catch (err) {
-        setRRLoading(false);
-        var errEl = document.getElementById('rr-send-err');
-        errEl.textContent = '❌ Something went wrong. Please email me directly at shubhanshumohan274@gmail.com';
-        errEl.classList.add('show');
-        console.error('EmailJS error:', err);
-      }
+  clearRRErrors();
+
+  var name    = document.getElementById('rr-name').value.trim();
+  var email   = document.getElementById('rr-email').value.trim();
+  var purpose = document.getElementById('rr-purpose').value.trim() || 'Not specified';
+
+  var valid = true;
+  if (!name || name.length < 2) {
+    document.getElementById('rr-name').classList.add('error');
+    document.getElementById('rr-name-err').classList.add('show');
+    valid = false;
+  }
+  var emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailReg.test(email)) {
+    document.getElementById('rr-email').classList.add('error');
+    document.getElementById('rr-email-err').classList.add('show');
+    valid = false;
+  }
+  if (!valid) return;
+
+  setRRLoading(true);
+
+  try {
+    const response = await fetch('/api/send-resume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, purpose })
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      setRRLoading(false);
+      showRRSuccess();
+    } else {
+      throw new Error(data.error || 'Unknown server error');
     }
+
+  } catch (err) {
+    setRRLoading(false);
+    var errEl = document.getElementById('rr-send-err');
+    errEl.textContent = '❌ Something went wrong. Please email me directly at shubhanshumohan274@gmail.com';
+    errEl.classList.add('show');
+    console.error('Resume request error:', err);
+  }
+}
     function showRRSuccess() {
       document.getElementById('rr-form-state').style.display = 'none';
       document.getElementById('rr-success-state').classList.add('show');
